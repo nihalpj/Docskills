@@ -267,7 +267,7 @@ Scale reference: even the full-scale Stage B from the pipeline doc (60k trajecto
 | Symptom | Cause → fix |
 |---|---|
 | `ValueError: FlashAttention2 has been requested but flash-attn ... not installed` | Template lacks flash-attn → install the prebuilt wheel (Step 5), or change `attn_implementation` in `train_sft.py` to `"sdpa"` (correct result, ~2× slower) |
-| CUDA OOM | Peak > 24 GB → set `--batch 1 --accum 32` (same effective batch); if still OOM, add `--lora`; check nothing else holds VRAM (`nvidia-smi`) |
+| CUDA OOM | Big-vocab logits spike (cross-entropy in fp32), often on long-sequence batches → `train.sh` now exports `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` and auto-retries once at `--batch 1 --accum 32` (same effective batch); manually: `BATCH=1 ACCUM=32 bash training/train.sh`; if still OOM, add `--lora` or lower `MAX_LEN`; check nothing else holds VRAM (`nvidia-smi`) |
 | `Permission denied (publickey)` on SSH | Keys added *after* instance creation don't apply, key not loaded (`ssh-add`), or wrong permissions on the key file → use the password from the Connect popup, or recreate the instance with keys in place; `ssh -vvv` to debug |
 | Instance unreachable after idle | Some templates/services stop; hard-check via console status, restart if needed — and use **tmux** so this never kills a run |
 | `hf download` 401/403 | `HF_TOKEN` not set / expired → `hf auth login` interactively |

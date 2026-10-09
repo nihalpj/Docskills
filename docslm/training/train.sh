@@ -50,6 +50,9 @@ REBUILD_DATA="${REBUILD_DATA:-0}"
 FORCE_PREP="${FORCE_PREP:-0}"
 GPU_PRICE="${GPU_PRICE:-0.35}"
 export HF_XET_HIGH_PERFORMANCE="${HF_XET_HIGH_PERFORMANCE:-1}"
+# defragment the CUDA allocator — long-sequence batches + big-vocab logits
+# fragment the cache badly (5+ GiB "reserved but unallocated" OOMs)
+export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
 
 # ---------- logging ----------------------------------------------------------
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
@@ -232,12 +235,38 @@ step "Train"
 mode="full-FT"; if [ -n "${LORA:-}" ]; then mode="LoRA"; fi
 info "out=$OUT · mode=$mode · epochs=$EPOCHS · lr=$LR · batch=$BATCH x $ACCUM · attn=${ATTN_IMPL:-flash_attention_2}"
 
+mkdir -p "$OUT"
+LOG="$OUT/train.log"
+run_train() {
+  python3 training/train_sft.py "$@" 2>&1 | tee "$LOG"
+}
+
 ARGS=( --data "$DATA_TOK" --out "$OUT" --model "$MODEL"
        --epochs "$EPOCHS" --lr "$LR" --batch "$BATCH" --accum "$ACCUM" )
 if [ -n "${LORA:-}" ]; then ARGS+=( --lora ); fi
-if [ "${RESUME:-0}" = "1" ];   then ARGS+=( --resume ); fi
+# only pass --resume when a checkpoint actually exists — transformers errors
+# out otherwise, and short runs may die before the first save_steps checkpoint
+if [ "${RESUME:-0}" = "1" ] && ls -d "$OUT"/checkpoint-* >/dev/null 2>&1; then
+  ARGS+=( --resume )
+fi
 
-python3 training/train_sft.py "${ARGS[@]}"
+if ! run_train "${ARGS[@]}"; then
+  # big-vocab cross-entropy can OOM on long-sequence batches even with
+  # headroom: halve per-device batch, double accumulation (same effective
+  # batch), and try again once
+  if grep -q "OutOfMemoryError" "$LOG" && [ "$BATCH" -gt 1 ]; then
+    warn "CUDA OOM — retrying once with BATCH=1 ACCUM=$((ACCUM * 2)) (same effective batch)"
+    RETRY=( --data "$DATA_TOK" --out "$OUT" --model "$MODEL"
+            --epochs "$EPOCHS" --lr "$LR" --batch 1 --accum $((ACCUM * 2)) )
+    if [ -n "${LORA:-}" ]; then RETRY+=( --lora ); fi
+    if [ "${RESUME:-0}" = "1" ] && ls -d "$OUT"/checkpoint-* >/dev/null 2>&1; then
+      RETRY+=( --resume )
+    fi
+    run_train "${RETRY[@]}" || die "training failed after OOM retry — full log: $LOG"
+  else
+    die "training failed — full log: $LOG"
+  fi
+fi
 
 # ---------- result ------------------------------------------------------------
 step "Result"
