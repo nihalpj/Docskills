@@ -177,6 +177,14 @@ PY
     info "hf CLI present ($(command -v hf || command -v huggingface-cli))"
   fi
 
+  # optional optimized kernels for Qwen3.5's hybrid linear-attention layers —
+  # without them transformers uses correct-but-slower reference implementations
+  # (you'll see the fallback warnings when training starts)
+  pip install -q flash-linear-attention \
+    || warn "flash-linear-attention unavailable — training will use slower reference kernels"
+  pip install -q causal-conv1d \
+    || warn "causal-conv1d unavailable — training will use slower reference kernels"
+
   # flash-attention: train_sft.py uses it whenever CUDA is on; fall back to SDPA if missing
   if python3 -c "import flash_attn" 2>/dev/null; then
     info "flash-attn present"

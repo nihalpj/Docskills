@@ -70,6 +70,14 @@ RUN pip install --no-cache-dir -U \
 RUN pip install --no-cache-dir flash-attn==2.8.3 --no-build-isolation \
  || echo "WARNING: flash-attn build failed — train.sh will use SDPA (set FLASH_ATTN=skip)"
 
+# ---- optional Qwen3.5 kernel accelerators ------------------------------------
+# Qwen3.5 mixes linear-attention (gated delta rule) and short-conv layers;
+# without these kernels transformers uses correct-but-slower reference impls
+RUN pip install --no-cache-dir flash-linear-attention \
+ || echo "WARNING: flash-linear-attention unavailable — reference kernels will be used"
+RUN pip install --no-cache-dir causal-conv1d \
+ || echo "WARNING: causal-conv1d unavailable — reference kernels will be used"
+
 # ---- pre-bake the base model (~2 GB) -----------------------------------------
 # Saves the per-instance download; every launch starts with a warm HF cache.
 # Delete this RUN if you'd rather keep the image slim.
