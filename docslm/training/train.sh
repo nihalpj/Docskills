@@ -113,7 +113,7 @@ PY
     info "Python deps present ($(python3 -c 'import transformers; print(transformers.__version__)'))"
   else
     info "Installing python deps…"
-    pip install -q -U "transformers>=4.51" datasets accelerate peft bitsandbytes "huggingface_hub[cli]"
+    pip install -q -U "transformers>=4.56,<5" datasets accelerate peft bitsandbytes huggingface_hub
   fi
 
   # flash-attention: train_sft.py uses it whenever CUDA is on; fall back to SDPA if missing
