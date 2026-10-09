@@ -3,6 +3,8 @@
 End-to-end guide for renting an **NVIDIA RTX 4090 (24 GB)** on [Novita AI GPU Cloud](https://novita.ai/gpus) and training **DocSLM-0.8B** (SFT stage of [04 — Training Pipeline](04_TRAINING_PIPELINE.md)) on it. Everything here was written against this repo's actual scripts (`training/prep_sft_data.py`, `training/train_sft.py`) and Novita's GPU Instance product as documented in their official guides.
 
 > **TL;DR** — the whole SFT run (930 trajectories, 3 epochs, ~2.5M tokens/epoch) takes **~30–60 minutes of GPU time** and costs **under $1** of compute. Rent the 4090 on-demand, run one prep command and one training command, copy `runs/sft-v1/final` off the box (or push to Hugging Face), stop the instance. Details below.
+>
+> **Shortcut:** steps 5–10 below are automated by **`bash training/train.sh`** (run it inside tmux after connecting). It installs deps, fetches the model, tokenizes, trains, prints the cost line, and — if you set `UPLOAD_REPO=<you>/docslm-sft-v1` — uploads the checkpoint for you. The manual steps remain the reference for what it does.
 
 ---
 

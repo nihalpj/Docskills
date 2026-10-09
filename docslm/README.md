@@ -39,6 +39,16 @@ python3 -m data_engine.validate
 
 The engine (`data_engine/`) is the reusable factory: stratified task sampler → code generators (docx-js / python-docx / openpyxl / pptxgenjs / reportlab) → 13 verified mutation classes for the repair curriculum → sandboxed execution + verification → manifest & validation gate. See [docs/07_DATASETS.md](docs/07_DATASETS.md).
 
+## One-command training
+
+On a GPU box (e.g. a Novita RTX 4090 — see [docs/08_NOVITA_4090_TRAINING.md](docs/08_NOVITA_4090_TRAINING.md)), the whole Stage-B workflow is one command:
+
+```bash
+HF_TOKEN=hf_... UPLOAD_REPO=<you>/docslm-sft-v1 bash training/train.sh
+```
+
+The driver handles dependency install, flash-attention (with automatic SDPA fallback), model download, tokenization, SFT (full-FT or `LORA=1`), resumability (`RESUME=1`), and pushes the final checkpoint to Hugging Face so it's safe before the instance stops. All knobs are documented in the header of [training/train.sh](training/train.sh).
+
 ## Base model facts (Qwen3.5-0.8B, released Mar 2026)
 
 - 0.8B params, 24 layers, hidden 1024 — full fine-tune fits one 24–80 GB GPU

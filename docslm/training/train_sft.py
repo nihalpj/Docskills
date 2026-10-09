@@ -11,11 +11,13 @@ Expected wall clock (930 trajectories, ~2.5M train tokens/epoch, 3 epochs):
   ~30-60 min on a 4090 with flash-attn; ~2x that with sdpa.
 
 Usage:
+  bash training/train.sh                  # full workflow: deps -> model -> prep -> train
   python3 training/train_sft.py --data datasets/sft_tokenized.jsonl \
-      --out runs/sft-v1
+      --out runs/sft-v1                   # this step only
 """
 import argparse
 import json
+import os
 
 import torch
 from datasets import Dataset
@@ -55,6 +57,8 @@ def main():
     ap.add_argument("--accum", type=int, default=16)
     ap.add_argument("--lora", action="store_true",
                     help="LoRA fallback (~12 GB): r=64 alpha=128 on all linear layers")
+    ap.add_argument("--resume", action="store_true",
+                    help="resume from the latest checkpoint-* in --out")
     args = ap.parse_args()
 
     rows = [json.loads(l) for l in open(args.data, encoding="utf-8")]
@@ -62,8 +66,9 @@ def main():
     tok = AutoTokenizer.from_pretrained(args.model)
 
     model = AutoModelForCausalLM.from_pretrained(
-        args.model, dtype=torch.bfloat16, attn_implementation="flash_attention_2"
-        if torch.cuda.is_available() else "sdpa")
+        args.model, dtype=torch.bfloat16,
+        attn_implementation=os.environ.get("ATTN_IMPL")
+        or ("flash_attention_2" if torch.cuda.is_available() else "sdpa"))
     model.config.use_cache = False
 
     # text-only training: freeze the vision tower so it holds no optimizer state
@@ -109,7 +114,8 @@ def main():
     )
 
     Trainer(model=model, args=targs, train_dataset=ds,
-            data_collator=Collator(tok.pad_token_id or tok.eos_token_id)).train()
+            data_collator=Collator(tok.pad_token_id or tok.eos_token_id)
+            ).train(resume_from_checkpoint=args.resume)
 
     model.config.use_cache = True
     trainer_model = model
