@@ -1,0 +1,73 @@
+{
+  "valid": true,
+  "counts": {
+    "sft": 930,
+    "preference": 240,
+    "routing": 1240
+  },
+  "quota": {
+    "repair_share": {
+      "value": 0.616,
+      "target_min": 0.25
+    },
+    "en_share": {
+      "value": 1.0,
+      "target_min": 1.0
+    }
+  },
+  "capability_coverage": {
+    "distinct_capabilities": 30,
+    "expected": 30,
+    "min_per_capability": 31,
+    "max_per_capability": 31,
+    "difficulty_distribution": {
+      "1": 310,
+      "2": 310,
+      "3": 310
+    }
+  },
+  "label_distribution": {
+    "routing_skill": {
+      "docx": 293,
+      "pdf": 578,
+      "xlsx": 287,
+      "pptx": 82
+    },
+    "strata": {
+      "docx/comment/en-US/L1": 31,
+      "docx/create/en-US/L1": 31,
+      "docx/edit/en-US/L2": 31,
+      "docx/footer_fix/en-US/L3": 31,
+      "docx/format/en-US/L3": 31,
+      "docx/read/en-US/L1": 31,
+      "docx/toc_fix/en-US/L2": 31,
+      "pdf/crop/en-US/L3": 31,
+      "pdf/extract_image/en-US/L3": 31,
+      "pdf/extract_table/en-US/L2": 31,
+      "pdf/extract_text/en-US/L1": 31,
+      "pdf/font_check/en-US/L3": 31,
+      "pdf/form_fill/en-US/L1": 31,
+      "pdf/merge/en-US/L3": 31,
+      "pdf/meta_edit/en-US/L2": 31,
+      "pdf/palette/en-US/L2": 31,
+      "pdf/qa/en-US/L3": 31,
+      "pdf/report/en-US/L2": 31,
+      "pdf/rotate/en-US/L2": 31,
+      "pdf/split/en-US/L1": 31,
+      "pdf/toc_check/en-US/L1": 31,
+      "pptx/create/en-US/L2": 31,
+      "pptx/inspect_edit/en-US/L3": 31,
+      "xlsx/analyze/en-US/L3": 31,
+      "xlsx/audit/en-US/L3": 31,
+      "xlsx/create/en-US/L1": 31,
+      "xlsx/edit/en-US/L2": 31,
+      "xlsx/inspect/en-US/L1": 31,
+      "xlsx/pivot/en-US/L1": 31,
+      "xlsx/scan/en-US/L2": 31
+    }
+  },
+  "problems": [],
+  "warnings": [
+    "sft: 2 identical turn-1 scripts (content differs)"
+  ]
+}

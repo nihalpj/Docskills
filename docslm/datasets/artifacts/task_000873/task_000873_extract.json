@@ -1,0 +1,29 @@
+{
+  "title": "Executive Overview",
+  "paragraph_count": 5,
+  "body_sample": [
+    "Body paragraph one.",
+    "Body paragraph two.",
+    "Appendix Table",
+    "Table notes."
+  ],
+  "tables": [
+    [
+      [
+        "",
+        "",
+        ""
+      ],
+      [
+        "",
+        "",
+        ""
+      ],
+      [
+        "",
+        "",
+        ""
+      ]
+    ]
+  ]
+}

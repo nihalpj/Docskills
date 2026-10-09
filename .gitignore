@@ -70,7 +70,6 @@ wandb/
 
 # Large datasets & archives
 *.csv
-*.jsonl
 *.parquet
 *.arrow
 *.tar.gz
@@ -78,7 +77,6 @@ wandb/
 *.h5
 *.hdf5
 data/
-datasets/
 raw_data/
 
 # ──────────────────────────────────────────────

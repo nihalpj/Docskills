@@ -1,0 +1,88 @@
+{
+  "engine_version": "1.2.0",
+  "plugin_rev": "0.1.4",
+  "build_seed": 2026,
+  "smoke": false,
+  "generated_at": "2026-10-08T19:03:45",
+  "wall_seconds": 122.0,
+  "counts": {
+    "attempted": 930,
+    "sft_ok": 930,
+    "sft_repair": 573,
+    "sft_clean": 357,
+    "preference_pairs": 240,
+    "routing": 1240,
+    "rejected": {
+      "ok": 930
+    }
+  },
+  "strata": {
+    "docx/comment/en-US/L1": 31,
+    "docx/create/en-US/L1": 31,
+    "docx/edit/en-US/L2": 31,
+    "docx/footer_fix/en-US/L3": 31,
+    "docx/format/en-US/L3": 31,
+    "docx/read/en-US/L1": 31,
+    "docx/toc_fix/en-US/L2": 31,
+    "pdf/crop/en-US/L3": 31,
+    "pdf/extract_image/en-US/L3": 31,
+    "pdf/extract_table/en-US/L2": 31,
+    "pdf/extract_text/en-US/L1": 31,
+    "pdf/font_check/en-US/L3": 31,
+    "pdf/form_fill/en-US/L1": 31,
+    "pdf/merge/en-US/L3": 31,
+    "pdf/meta_edit/en-US/L2": 31,
+    "pdf/palette/en-US/L2": 31,
+    "pdf/qa/en-US/L3": 31,
+    "pdf/report/en-US/L2": 31,
+    "pdf/rotate/en-US/L2": 31,
+    "pdf/split/en-US/L1": 31,
+    "pdf/toc_check/en-US/L1": 31,
+    "pptx/create/en-US/L2": 31,
+    "pptx/inspect_edit/en-US/L3": 31,
+    "xlsx/analyze/en-US/L3": 31,
+    "xlsx/audit/en-US/L3": 31,
+    "xlsx/create/en-US/L1": 31,
+    "xlsx/edit/en-US/L2": 31,
+    "xlsx/inspect/en-US/L1": 31,
+    "xlsx/pivot/en-US/L1": 31,
+    "xlsx/scan/en-US/L2": 31
+  },
+  "mutations": {
+    "pdf_syntax": 9,
+    "undefined_helper": 4,
+    "missing_import_py": 24,
+    "attr_typo": 20,
+    "py_syntax": 404,
+    "cli_flag_typo": 29,
+    "ref_unknown_sheet": 30,
+    "openpyxl_import": 20,
+    "heading_level_skip": 1,
+    "undefined_method": 15,
+    "shading_solid": 5,
+    "missing_import": 10,
+    "trailing_blank_page": 2
+  },
+  "error_classes": {
+    "syntax": 413,
+    "api_error": 93,
+    "cli_error": 29,
+    "range_error": 30,
+    "format_violation": 8
+  },
+  "files": {
+    "sft_trajectories.jsonl": {
+      "sha256_16": "1abb8f616a8b5b14",
+      "bytes": 9451655
+    },
+    "preference_pairs.jsonl": {
+      "sha256_16": "6a1187c5a31c9c9c",
+      "bytes": 1871522
+    },
+    "routing.jsonl": {
+      "sha256_16": "380f0ac6800c962a",
+      "bytes": 1094857
+    }
+  },
+  "notes": "All records execution-verified against document-skills postcheck and structural checkers; rejected attempts are excluded."
+}
