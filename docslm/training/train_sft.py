@@ -17,7 +17,9 @@ Usage:
 """
 import argparse
 import json
+import math
 import os
+import re
 
 import torch
 from datasets import Dataset
@@ -89,14 +91,13 @@ def main():
                             "gate_proj", "up_proj", "down_proj"]))
         model.print_trainable_parameters()
 
-    targs = TrainingArguments(
+    base = dict(
         output_dir=args.out,
         num_train_epochs=args.epochs,
         per_device_train_batch_size=args.batch,
         gradient_accumulation_steps=args.accum,
         learning_rate=args.lr,
         lr_scheduler_type="cosine",
-        warmup_ratio=0.03,
         weight_decay=0.0,
         max_grad_norm=1.0,
         bf16=True,
@@ -112,6 +113,25 @@ def main():
         report_to=[],
         seed=2026,
     )
+    total_steps = math.ceil(len(ds) / (args.batch * args.accum) * args.epochs)
+
+    # 5.x-era transformers keeps renaming TrainingArguments args (e.g.
+    # warmup_ratio -> warmup_steps): drop unknowns and substitute instead of
+    # pinning the library version
+    kwargs = dict(base, warmup_ratio=0.03)
+    while True:
+        try:
+            targs = TrainingArguments(**kwargs)
+            break
+        except TypeError as e:
+            m = re.search(r"unexpected keyword argument '(\w+)'", str(e))
+            if not m:
+                raise
+            dropped = m.group(1)
+            print(f"transformers API drift: dropping unsupported arg '{dropped}'")
+            kwargs.pop(dropped)
+            if dropped == "warmup_ratio":
+                kwargs["warmup_steps"] = max(1, round(0.03 * total_steps))
 
     Trainer(model=model, args=targs, train_dataset=ds,
             data_collator=Collator(tok.pad_token_id or tok.eos_token_id)

@@ -19,6 +19,7 @@
 #   RESUME=1               resume from the latest checkpoint-* in OUT
 #   FLASH_ATTN=auto|skip   skip -> SDPA attention (~2x slower, no build step)
 #   SKIP_DEPS=1            don't touch pip
+#   SKIP_APT=1             don't apt-install missing system packages (git/tmux/…)
 #   REBUILD_DATA=1         rerun data_engine.build + validate first
 #   FORCE_PREP=1           rerun tokenization even if output is newer than input
 #   UPLOAD_REPO=<repo/id>  push OUT/final to Hugging Face when done
@@ -44,10 +45,11 @@ MAX_LEN="${MAX_LEN:-6144}"
 UPLOAD_REPO="${UPLOAD_REPO:-}"
 FLASH_ATTN="${FLASH_ATTN:-auto}"          # auto | skip
 SKIP_DEPS="${SKIP_DEPS:-0}"
+SKIP_APT="${SKIP_APT:-0}"
 REBUILD_DATA="${REBUILD_DATA:-0}"
 FORCE_PREP="${FORCE_PREP:-0}"
 GPU_PRICE="${GPU_PRICE:-0.35}"
-export HF_HUB_ENABLE_HF_TRANSFER="${HF_HUB_ENABLE_HF_TRANSFER:-1}"
+export HF_XET_HIGH_PERFORMANCE="${HF_XET_HIGH_PERFORMANCE:-1}"
 
 # ---------- logging ----------------------------------------------------------
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
@@ -66,7 +68,9 @@ fmt_time() { printf '%dm%02ds' $(( ($1) / 60 )) $(( ($1) % 60 )); }
 HF_BIN=''
 hfcli() {
   if [ -z "$HF_BIN" ]; then
-    if command -v hf >/dev/null 2>&1; then HF_BIN=hf; else HF_BIN=huggingface-cli; fi
+    if command -v hf >/dev/null 2>&1; then HF_BIN=hf
+    elif command -v huggingface-cli >/dev/null 2>&1; then HF_BIN=huggingface-cli
+    else die "Neither 'hf' nor 'huggingface-cli' found — run: pip install -U huggingface_hub"; fi
   fi
   "$HF_BIN" "$@"
 }
@@ -100,20 +104,77 @@ if [ -d "$OUT/final" ]; then
   warn "$OUT/final already exists and will be overwritten — use OUT=$OUT-v2 to keep it"
 fi
 
+# ---------- system packages ---------------------------------------------------
+step "System packages"
+if [ "$SKIP_APT" = "1" ]; then
+  info "SKIP_APT=1 — skipping system package check"
+elif ! command -v apt-get >/dev/null 2>&1; then
+  warn "apt-get not found (non-Debian image?) — ensure git + tmux are available manually"
+else
+  APT="apt-get"
+  if [ "$(id -u)" != "0" ]; then
+    if command -v sudo >/dev/null 2>&1; then APT="sudo apt-get"
+    else warn "Not root and no sudo — cannot install system packages"; APT=""; fi
+  fi
+  if [ -n "$APT" ]; then
+    MISSING=()
+    for pair in git:git tmux:tmux curl:curl rsync:rsync; do
+      bin="${pair%%:*}"; pkg="${pair##*:}"
+      command -v "$bin" >/dev/null 2>&1 || MISSING+=("$pkg")
+    done
+    # a C toolchain is only needed if flash-attn has to compile from source
+    if [ "$FLASH_ATTN" != "skip" ] && ! python3 -c "import flash_attn" 2>/dev/null \
+       && ! command -v gcc >/dev/null 2>&1; then
+      MISSING+=(build-essential)
+    fi
+    if [ "${#MISSING[@]}" -gt 0 ]; then
+      info "Installing missing system packages: ${MISSING[*]}"
+      $APT update -qq || warn "apt-get update reported errors — attempting install anyway"
+      DEBIAN_FRONTEND=noninteractive $APT install -y -qq "${MISSING[@]}" \
+        || warn "System package install failed — continue, or install manually: apt-get install -y ${MISSING[*]}"
+    else
+      info "git / tmux / curl / rsync all present — nothing to install"
+    fi
+  fi
+fi
+
 # ---------- dependencies -----------------------------------------------------
 if [ "$SKIP_DEPS" != "1" ]; then
   step "Dependencies"
   if python3 - <<'PY' 2>/dev/null
 import transformers
-v = tuple(int(x) for x in transformers.__version__.split(".")[:2])
-assert v >= (4, 51), transformers.__version__
+from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+assert "qwen3_5" in CONFIG_MAPPING, "transformers lacks Qwen3.5 support"
 import datasets, accelerate, peft, bitsandbytes, huggingface_hub
 PY
   then
     info "Python deps present ($(python3 -c 'import transformers; print(transformers.__version__)'))"
   else
-    info "Installing python deps…"
-    pip install -q -U "transformers>=4.56,<5" datasets accelerate peft bitsandbytes huggingface_hub
+    info "Installing/upgrading python deps…"
+    # no upper pin: Qwen3.5 (model_type qwen3_5) needs a 5.x-era transformers,
+    # so we must never hold back at a 4.x release
+    pip install -q -U "transformers>=4.56" datasets accelerate peft bitsandbytes huggingface_hub
+    # escalate until the architecture is actually loadable:
+    CAP='from transformers.models.auto.configuration_auto import CONFIG_MAPPING as M; assert "qwen3_5" in M'
+    if ! python3 -c "$CAP" 2>/dev/null; then
+      warn "installed transformers lacks Qwen3.5 — upgrading to the newest release…"
+      pip install -q -U transformers
+    fi
+    if ! python3 -c "$CAP" 2>/dev/null; then
+      warn "latest release doesn't know qwen3_5 yet — installing transformers from source…"
+      pip install -q "git+https://github.com/huggingface/transformers.git"
+    fi
+    python3 -c "$CAP" 2>/dev/null \
+      || die "transformers still can't load Qwen3.5 after upgrade + source install — check the model card for the minimum supported version"
+    info "transformers $(python3 -c 'import transformers; print(transformers.__version__)') — qwen3_5 OK"
+  fi
+
+  # the hf CLI ships inside huggingface_hub — make sure one of its entry points exists
+  if ! command -v hf >/dev/null 2>&1 && ! command -v huggingface-cli >/dev/null 2>&1; then
+    info "Installing huggingface_hub (provides the hf CLI)…"
+    pip install -q -U huggingface_hub
+  else
+    info "hf CLI present ($(command -v hf || command -v huggingface-cli))"
   fi
 
   # flash-attention: train_sft.py uses it whenever CUDA is on; fall back to SDPA if missing
@@ -124,7 +185,7 @@ PY
     export ATTN_IMPL=sdpa
   else
     info "Installing flash-attn (prebuilt wheel; up to 20 min if it compiles)…"
-    if timeout 1200 pip install -q flash-attn --no-build-isolation \
+    if timeout 1200 pip install -q ninja flash-attn --no-build-isolation \
        && python3 -c "import flash_attn" 2>/dev/null; then
       info "flash-attn installed"
     else
